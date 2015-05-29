@@ -95,6 +95,9 @@ Plugin.getAssetChunk = function (stringOrArray, compilerOptions) {
 	// mapSegment e.g. ".map"
 	var mapRegex = new RegExp(mapSegment);
 
+	// hot module replacement bundle
+	var hmrRegex = new RegExp(/hot-update\.js$/)
+
 	// value e.g.
 	//   desktop.js.map
 	//   desktop.js.map?9b913c8594ce98e06b21
@@ -102,12 +105,19 @@ Plugin.getAssetChunk = function (stringOrArray, compilerOptions) {
 		return mapRegex.test(value);
 	}
 
+    // value e.g.
+    // 5.3d87f1acf3dbd1757c67.hot-update.js
+    function isHMR(value){
+        return hmrRegex.test(value);
+    }
+
+
 	// isAsset
 	// Return true if a chunk is not a source map
 	// @param {String} chunk value e.g. index-bundle.js.map
 	// @return {Boolean}
 	function isAsset(value) {
-		return !isSourceMap(value);
+		return !isSourceMap(value) && !isHMR(value);
 	}
 
 	if (stringOrArray instanceof Array) {
