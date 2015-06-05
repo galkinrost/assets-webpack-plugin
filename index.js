@@ -4,9 +4,9 @@ var path = require('path');
 var assets = {};
 
 function extend(target, source) {
-	for(var k in source){
-		target[k] = source[k];
-	}
+	Object.keys(source).forEach(function(key) {
+		target[key] = source[key];
+	});
 	return target;
 }
 
@@ -31,7 +31,7 @@ Plugin.prototype.apply = function(compiler) {
 
 		var outputFilename = self.options.filename || 'webpack-assets.json';
 		var outputFull = path.join(outputDir, outputFilename);
-		self.writeOutput(compiler, self.options.multiCompiler ? extend(assets,hashes) : hashes, outputFull);
+		self.writeOutput(compiler, self.options.multiCompiler ? extend(assets, hashes) : hashes, outputFull);
 		callback();
 	});
 };
@@ -43,14 +43,6 @@ Plugin.prototype.writeOutput = function(compiler, hashes, outputFull) {
 			compiler.errors.push(new Error('Plugin: Unable to save to ' + outputFull));
 		}
 	});
-	// compiler.assets[outputFilename] = {
-	//  source: function() {
-	//    return json;
-	//  },
-	//  size: function() {
-	//    return json.length;
-	//  }
-	// };
 };
 
 Plugin.prototype.getHashes = function(compiler) {
@@ -61,7 +53,7 @@ Plugin.prototype.getHashes = function(compiler) {
 	// e.g. { one: 'one-bundle.js', two: 'two-bundle.js' }
 	// in some cases (when using a plugin or source maps) it might contain an array of produced files
 	// e.g. { main: [ 'index-bundle.js', 'index-bundle.js.map' ] }
-	for (var chunk in webpackStatsJson.assetsByChunkName) {
+	Object.keys(webpackStatsJson.assetsByChunkName).forEach(function(chunk) {
 		var chunkValue = webpackStatsJson.assetsByChunkName[chunk];
 		// Webpack outputs an array for each chunk when using sourcemaps and some plugins
 
@@ -72,14 +64,16 @@ Plugin.prototype.getHashes = function(compiler) {
 		}
 
 		assets[chunk] = chunkValue;
-	}
-
+	});
 	return assets;
 };
 
-Plugin.getAssetChunk = function (stringOrArray, compilerOptions) {
+Plugin.getAssetChunk = function(stringOrArray, compilerOptions) {
 	if (!stringOrArray) throw new Error('stringOrArray required');
 	if (!compilerOptions) throw new Error('compilerOptions required');
+	if (!Array.isArray(stringOrArray)) {
+		stringOrArray = [stringOrArray];
+	}
 
 	// For source maps we care about:
 	// compilerOptions.output.sourceMapFilename;
@@ -89,6 +83,7 @@ Plugin.getAssetChunk = function (stringOrArray, compilerOptions) {
 	// e.g. '[file].map[query]'
 	var mapSegment = sourceMapFilename
 		.replace('[file]', '')
+		.replace('[name]', '')
 		.replace('[query]', '')
 		.replace('[hash]', '');
 
@@ -96,7 +91,7 @@ Plugin.getAssetChunk = function (stringOrArray, compilerOptions) {
 	var mapRegex = new RegExp(mapSegment);
 
 	// hot module replacement bundle
-	var hmrRegex = new RegExp(/hot-update\.js$/)
+	var hmrRegex = new RegExp(/hot-update\.js$/);
 
 	// value e.g.
 	//   desktop.js.map
@@ -105,11 +100,11 @@ Plugin.getAssetChunk = function (stringOrArray, compilerOptions) {
 		return mapRegex.test(value);
 	}
 
-    // value e.g.
-    // 5.3d87f1acf3dbd1757c67.hot-update.js
-    function isHMR(value){
-        return hmrRegex.test(value);
-    }
+	// value e.g.
+	// 5.3d87f1acf3dbd1757c67.hot-update.js
+	function isHMR(value) {
+		return hmrRegex.test(value);
+	}
 
 
 	// isAsset
@@ -120,17 +115,11 @@ Plugin.getAssetChunk = function (stringOrArray, compilerOptions) {
 		return !isSourceMap(value) && !isHMR(value);
 	}
 
-	if (stringOrArray instanceof Array) {
-		// When using plugins like 'extract-text', for extracting CSS from JS, webpack
-		// will push the new bundle to the array, so the last item will be the correct
-		// chunk
-		// e.g. [ 'styles-bundle.js', 'styles-bundle.css' ]
-		return stringOrArray
-			.filter(isAsset)
-			.pop();
-	} else {
-		return stringOrArray;
-	}
+	// When using plugins like 'extract-text', for extracting CSS from JS, webpack
+	// will push the new bundle to the array, so the last item will be the correct
+	// chunk
+	// e.g. [ 'styles-bundle.js', 'styles-bundle.css' ]
+	return stringOrArray.filter(isAsset).pop();
 };
 
 module.exports = Plugin;
